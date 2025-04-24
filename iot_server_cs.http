@@ -1,0 +1,43 @@
+@iot_server_cs_HostAddress = https://iot.philippevoet.dev
+
+### sets a sensors value
+
+@sensorname = test
+@sensorvalue = 43
+
+POST {{iot_server_cs_HostAddress}}/sensors/{{sensorname}}/{{sensorvalue}}
+
+### sets the location
+
+POST {{iot_server_cs_HostAddress}}/location
+Content-Type: application/json
+Accept: application/json
+
+{
+  "longitude": 4.42,
+  "latitude": 51.184
+}
+
+### get a html page to enter the new location
+
+GET {{iot_server_cs_HostAddress}}/location
+Accept: text/html
+
+### set cat location range
+
+@locationrange = 50
+
+POST {{iot_server_cs_HostAddress}}/location/range/{{locationrange}}
+
+
+### set location range center
+
+POST {{iot_server_cs_HostAddress}}/location/center
+Content-Type: application/json
+Accept: application/json
+
+{
+  "longitude": 4.42,
+  "latitude": 51.184
+}
+
