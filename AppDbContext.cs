@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Net.WebSockets;
+using System.Text.Json;
 using iot_server_cs.Controllers;
 
 namespace iot_server_cs;
@@ -19,6 +20,7 @@ public class FullDataBaseDto
     public required double locationrange { get; set; }
     public required LocationDto center_allowed_location { get; set; }
     public required bool redlight { get; set; }
+    public required string type { get; set; }
 }
 
 
@@ -46,7 +48,8 @@ public class AppDbContext : DbContext
             location = Location,
             locationrange = locationrange,
             center_allowed_location = center_allowed_location,
-            redlight = redlight
+            redlight = redlight,
+            type = "state"
         };
     }
 
@@ -64,6 +67,17 @@ public class AppDbContext : DbContext
         });
         SaveChanges();
         SendSocketUpdate();
+    }
+
+    public async void sendState(WebSocket socket)
+    {
+        string message = JsonSerializer.Serialize(GetDbDto());
+        var buffer = System.Text.Encoding.UTF8.GetBytes(message);
+        var segment = new ArraySegment<byte>(buffer);
+        if (socket.State == WebSocketState.Open)
+        {
+            await socket.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+        }
     }
 
     public List<SensorData> GetSensors()

@@ -9,6 +9,7 @@ public class LocationDto
 {
     public required double latitude { get; set; }
     public required double longitude { get; set; }
+    
 }
 
 

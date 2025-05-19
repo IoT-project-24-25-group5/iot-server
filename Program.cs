@@ -14,6 +14,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         .EnableSensitiveDataLogging()
         .LogTo(Console.WriteLine, LogLevel.Information));
 
+builder.Services.AddSingleton<WebSocketMessageHandler>();
+
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -32,41 +35,27 @@ app.Use( async (context, next) =>
     if (context.WebSockets.IsWebSocketRequest)
     {
         using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
-        // websocketHandling.HandleWebSocketRequest(context);
+        var wsm = scope.ServiceProvider.GetRequiredService<WebSocketMessageHandler>();
         if (context.Request.Path == "/")
         {
-            WebSocket webSocket = context.WebSockets.AcceptWebSocketAsync().Result;
-            WebsocketStore.AddClient(webSocket);
+            WebSocket ws = await context.WebSockets.AcceptWebSocketAsync();
+            WebsocketStore.AddClient(ws);
             // JsonSerializer.Serialize(db.GetDbDto());
-            WebsocketStore.sendText(webSocket, JsonSerializer.Serialize(db.GetDbDto()));
+            WebsocketStore.sendText(ws, JsonSerializer.Serialize(wsm._db.GetDbDto()));
             
             var buffer = new byte[1024 * 4];
-            while (webSocket.State == WebSocketState.Open)
+            while (ws.State == WebSocketState.Open)
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
                     var message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
-
-                    if (message == "pytrack")
-                    {
-                        WebsocketStore.UpgradeClientToPytrack(webSocket);
-                    }
-                    else if(message == "devBoard")
-                    {
-                        WebsocketStore.UpgradeClientToDevBoard(webSocket);
-                    }
-                    else
-                    {
-                        Console.WriteLine(message);
-                    }
+                    Console.WriteLine(message);
+                    wsm.handleWebsocketMessage(ws, message);
                 }
-                
             }
-            WebsocketStore.RemoveClient(webSocket);
             
+            WebsocketStore.RemoveClient(ws);
         }
     }
     else

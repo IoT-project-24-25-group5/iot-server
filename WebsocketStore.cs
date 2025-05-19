@@ -1,7 +1,9 @@
 ﻿using System.Net.WebSockets;
+using System.Text.Json;
 
 namespace iot_server_cs;
 
+// todo rename: something like datamanager or transport manager
 public static class WebsocketStore
 {
 
@@ -10,6 +12,7 @@ public static class WebsocketStore
     public static WebSocket devBoard;
     
     public static List<WebSocket> clients = new List<WebSocket>();
+    
 
     public static void AddClient(WebSocket client)
     {
