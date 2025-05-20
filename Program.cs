@@ -28,7 +28,10 @@ app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
-app.UseWebSockets();
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(30)
+});
 
 app.Use( async (context, next) =>
 {
