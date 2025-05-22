@@ -13,29 +13,6 @@ public class WebSocketMessageHandler
         _db = serviceProvider.GetRequiredService<AppDbContext>();
     }
 
-    // public async Task HandleWebSocketRequest(HttpContext context)
-    // {
-    //     if (context.Request.Path == "/")
-    //     {
-    //         WebSocket ws = context.WebSockets.AcceptWebSocketAsync().Result;
-    //         WebsocketStore.AddClient(ws);
-    //         // JsonSerializer.Serialize(db.GetDbDto());
-    //         WebsocketStore.sendText(ws, JsonSerializer.Serialize(_db.GetDbDto()));
-    //         
-    //         var buffer = new byte[1024 * 4];
-    //         while (ws.State == WebSocketState.Open)
-    //         {
-    //             var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-    //             if (result.MessageType == WebSocketMessageType.Text)
-    //             {
-    //                 var message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
-    //                 handleWebsocketMessage(ws, message);
-    //             }
-    //         }
-    //         WebsocketStore.RemoveClient(ws);
-    //     }
-    // }
-
     public void handleWebsocketMessage(WebSocket client, string message)
     {
         if (message == "pytrack")
@@ -110,11 +87,80 @@ public class WebSocketMessageHandler
                 case "getvideo":
                     WebsocketStore.sendText(client, "{\"type\": \"error\", \"message\": \"invalid message\"}");
                     break;
+                case "offer":
+                    WebsocketStore.waitingRTCAnswer.Add(client);
+                    try
+                    {
+                        WebsocketStore.sendText(WebsocketStore.devBoard, message);
+                        WebsocketStore.sendText(client, "{\"type\": \"acknowledge\", \"message\": \"waiting for answer\"}");
+                    }
+                    catch (Exception e)
+                    {
+                        WebsocketStore.sendText(client, "{\"type\": \"error\", \"message\": \" devBoard not connected \"}");
+                    }
+                    break;
+                case "answer":
+                    if (WebsocketStore.devBoard == client)
+                    {
+                        var recepiant = WebsocketStore.waitingRTCAnswer[0];
+                        WebsocketStore.sendText(recepiant, message);
+                        WebsocketStore.waitingRTCAnswer.Remove(recepiant);
+                    }
+                    break;
+                case "sensors":
+                    foreach (var sensor in deserializedMessage["value"].EnumerateObject())
+                    {
+                        _db.AddSensorData(sensor.Name, sensor.Value.ToString());
+                    }
+
+                    break;
+                default:
+                    Console.WriteLine("unknown message type");
+                    Console.WriteLine(message);
+                    break;
             }
         }
         catch (Exception e)
         {
-            WebsocketStore.sendText(client, "{\"type\": \"error\", \"message\": \"" + e.Message + "\"}");
+            try
+            {
+                Console.WriteLine("----- ACTUAL MESSAGE BEFORE PARSE -----");
+                Console.WriteLine("StartsWith: " + message.Substring(0, Math.Min(10, message.Length)));
+                Console.WriteLine("Full: " + message);
+                Console.WriteLine("Is JSON? " + message.TrimStart().StartsWith("{"));
+                Dictionary<string, string> deserializedMessage =
+                    JsonSerializer.Deserialize<Dictionary<string, string>>(message);
+                switch (deserializedMessage["type"])
+                {
+                    case "offer":
+                        WebsocketStore.waitingRTCAnswer.Add(client);
+                        try
+                        {
+                            WebsocketStore.sendText(WebsocketStore.devBoard, message);
+                            WebsocketStore.sendText(client, "{\"type\": \"acknowledge\", \"message\": \"waiting for answer\"}");
+                        }
+                        catch (Exception e2)
+                        {
+                            WebsocketStore.sendText(client, "{\"type\": \"error\", \"message\": \" devBoard not connected \"}");
+                        }
+                        break;
+                    case "answer":
+                        if (WebsocketStore.devBoard == client)
+                        {
+                            var recepiant = WebsocketStore.waitingRTCAnswer[0];
+                            WebsocketStore.sendText(recepiant, message);
+                            WebsocketStore.waitingRTCAnswer.Remove(recepiant);
+                        }
+                        break;
+                    default:
+                        WebsocketStore.sendText(client, "{\"type\": \"error\", \"message\": \"line145 " + e.Message + "\"}");
+                        break;
+                }
+            }
+            catch (Exception e2)
+            {
+                WebsocketStore.sendText(client, "{\"type\": \"error\", \"message\": \" line 151" + e2.Message + "\"}");
+            }
         }
     }
 }

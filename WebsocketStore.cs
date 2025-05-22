@@ -12,6 +12,8 @@ public static class WebsocketStore
     public static WebSocket devBoard;
     
     public static List<WebSocket> clients = new List<WebSocket>();
+
+    public static List<WebSocket> waitingRTCAnswer = new List<WebSocket>();
     
 
     public static void AddClient(WebSocket client)
