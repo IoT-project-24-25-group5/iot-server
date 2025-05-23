@@ -104,15 +104,63 @@ public class WebSocketMessageHandler
                     {
                         var recepiant = WebsocketStore.waitingRTCAnswer[0];
                         WebsocketStore.sendText(recepiant, message);
-                        WebsocketStore.waitingRTCAnswer.Remove(recepiant);
+                        WebsocketStore.waitingRTCAnswer.RemoveAt(0);
                     }
                     break;
                 case "sensors":
-                    foreach (var sensor in deserializedMessage["value"].EnumerateObject())
+                    _db.AddSensorsData(deserializedMessage["value"]);
+                    WebsocketStore.sendText(client, "{\"type\": \"acknowledge\", \"message\": \"sensors data set\"}");
+                    break;
+                case "frame":
+                    foreach (var picSubscriber in WebsocketStore.picSubscribers)
                     {
-                        _db.AddSensorData(sensor.Name, sensor.Value.ToString());
+                        WebsocketStore.sendText(picSubscriber, message);
                     }
 
+                    if (WebsocketStore.picSubscribers.Count != 0)
+                    {
+                        WebsocketStore.sendText(WebsocketStore.devBoard, "{\"type\": \"getFrame\"}");
+                    }
+                    break;
+                case "frameSub":
+                    if (WebsocketStore.picSubscribers.Contains(client))
+                    {
+                        WebsocketStore.sendText(client, "{\"type\": \"error\", \"message\": \"already subscribed\"}");
+                        return;
+                    }
+                    if (WebsocketStore.devBoard == null)
+                    {
+                        WebsocketStore.picSubscribers.Clear();
+                        return;
+                    }
+                    WebsocketStore.picSubscribers.Add(client);
+                    Console.WriteLine(WebsocketStore.picSubscribers.Count);
+                    if (WebsocketStore.picSubscribers.Count == 1)
+                    {
+                        Console.WriteLine("get a frame");
+                        WebsocketStore.sendText(WebsocketStore.devBoard, "{\"type\": \"getFrame\"}");
+                    }
+                    break;
+                case "frameUnsub":
+                    WebsocketStore.picSubscribers.Remove(client);
+                    break;
+                case "notification":
+                    _db.AddAnomally(deserializedMessage["message"].GetString()!);
+                    break;
+                case "cat_detected":
+                    _db.AddAnomally("cat detected on video");
+                    break;
+                case "cat_jump":
+                    _db.AddAnomally("cat jumped");
+                    break;
+                case "cat_fall":
+                    _db.AddAnomally("cat fell");
+                    break;
+                case "cat_sit":
+                    _db.AddAnomally("cat sat down");
+                    break;
+                case "cat_roll":
+                    _db.AddAnomally("cat rolled");
                     break;
                 default:
                     Console.WriteLine("unknown message type");
@@ -127,7 +175,6 @@ public class WebSocketMessageHandler
                 Console.WriteLine("----- ACTUAL MESSAGE BEFORE PARSE -----");
                 Console.WriteLine("StartsWith: " + message.Substring(0, Math.Min(10, message.Length)));
                 Console.WriteLine("Full: " + message);
-                Console.WriteLine("Is JSON? " + message.TrimStart().StartsWith("{"));
                 Dictionary<string, string> deserializedMessage =
                     JsonSerializer.Deserialize<Dictionary<string, string>>(message);
                 switch (deserializedMessage["type"])
@@ -149,7 +196,7 @@ public class WebSocketMessageHandler
                         {
                             var recepiant = WebsocketStore.waitingRTCAnswer[0];
                             WebsocketStore.sendText(recepiant, message);
-                            WebsocketStore.waitingRTCAnswer.Remove(recepiant);
+                            WebsocketStore.waitingRTCAnswer.RemoveAt(0);
                         }
                         break;
                     default:

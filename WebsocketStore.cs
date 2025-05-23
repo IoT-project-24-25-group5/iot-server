@@ -6,7 +6,6 @@ namespace iot_server_cs;
 // todo rename: something like datamanager or transport manager
 public static class WebsocketStore
 {
-
     public static WebSocket pytrack;
 
     public static WebSocket devBoard;
@@ -14,6 +13,8 @@ public static class WebsocketStore
     public static List<WebSocket> clients = new List<WebSocket>();
 
     public static List<WebSocket> waitingRTCAnswer = new List<WebSocket>();
+    
+    public static List<WebSocket> picSubscribers = new List<WebSocket>();
     
 
     public static void AddClient(WebSocket client)
@@ -34,6 +35,14 @@ public static class WebsocketStore
         else
         {
             clients.Remove(client);
+        }
+        if (waitingRTCAnswer.Contains(client))
+        {
+            waitingRTCAnswer.Remove(client);
+        }
+        if (picSubscribers.Contains(client))
+        {
+            picSubscribers.Remove(client);
         }
     }
     
